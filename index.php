@@ -133,7 +133,22 @@ $students = $stmt->fetchAll();
 
         <?php endif; ?>
 
+        <?php if (isset($_GET['updated'])): ?>
 
+        <div class="success">
+            Student updated successfully.
+        </div>
+
+        <?php endif; ?>
+
+        <?php if (isset($_GET['deleted'])): ?>
+
+            <div class="success">
+                Student deleted successfully.
+            </div>
+
+        <?php endif; ?>
+        
         <form method="POST">
 
             <div class="form-group">
@@ -201,6 +216,7 @@ $students = $stmt->fetchAll();
                     <th>Name</th>
                     <th>Course</th>
                     <th>Created At</th>
+                    <th>Actions</th>
 
                 </tr>
 
@@ -227,6 +243,39 @@ $students = $stmt->fetchAll();
 
                         <td>
                             <?= htmlspecialchars($student['created_at']) ?>
+                        </td>
+
+                        <td class="actions">
+
+                            <a
+                                class="edit-button"
+                                href="edit.php?id=<?= urlencode($student['id']) ?>"
+                            >
+                                Edit
+                            </a>
+
+                            <form
+                                method="POST"
+                                action="delete.php"
+                                class="delete-form"
+                                onsubmit="return confirm('Delete this student?');"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value="<?= htmlspecialchars($student['id']) ?>"
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="delete-button"
+                                >
+                                    Delete
+                                </button>
+
+                            </form>
+
                         </td>
 
                     </tr>

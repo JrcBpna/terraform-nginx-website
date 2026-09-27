@@ -1,113 +1,99 @@
 <?php
 
-$configFile = '/etc/webapp/db.json';
+require_once __DIR__ . '/db.php';
 
-if (!file_exists($configFile)) {
-    die("Database configuration file not found.");
+$error = "";
+
+/*
+|--------------------------------------------------------------------------
+| CREATE STUDENT
+|--------------------------------------------------------------------------
+*/
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $name = trim($_POST['name'] ?? '');
+    $course = trim($_POST['course'] ?? '');
+
+    if ($name === '' || $course === '') {
+
+        $error = "Name and course are required.";
+
+    } elseif (strlen($name) > 100 || strlen($course) > 100) {
+
+        $error = "Name and course must be less than 100 characters.";
+
+    } else {
+
+        try {
+
+            $stmt = $pdo->prepare(
+                "INSERT INTO students (name, course)
+                 VALUES (:name, :course)"
+            );
+
+            $stmt->execute([
+                ':name'   => $name,
+                ':course' => $course
+            ]);
+
+            /*
+             * Redirect after successful POST.
+             * Prevents duplicate insert when refreshing browser.
+             */
+            header("Location: index.php?created=1");
+            exit;
+
+        } catch (PDOException $e) {
+
+            if ($e->getCode() === '23000') {
+                $error = "This student and course combination already exists.";
+            } else {
+
+                error_log($e->getMessage());
+
+                $error = "Unable to add student.";
+            }
+        }
+    }
 }
 
-$config = json_decode(file_get_contents($configFile), true);
 
-if (
-    !isset(
-        $config['host'],
-        $config['database'],
-        $config['username'],
-        $config['password']
-    )
-) {
-    die("Invalid database configuration.");
-}
+/*
+|--------------------------------------------------------------------------
+| READ STUDENTS
+|--------------------------------------------------------------------------
+*/
 
-$host     = $config['host'];
-$dbname   = $config['database'];
-$username = $config['username'];
-$password = $config['password'];
+$stmt = $pdo->query(
+    "SELECT id, name, course, created_at
+     FROM students
+     ORDER BY id DESC"
+);
 
-try {
-
-    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
-
-    $pdo = new PDO(
-        $dsn,
-        $username,
-        $password,
-        [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-        ]
-    );
-
-    $stmt = $pdo->query(
-        "SELECT id, name, course, created_at
-         FROM students
-         ORDER BY id"
-    );
-
-    $students = $stmt->fetchAll();
-
-} catch (PDOException $e) {
-
-    die("Database connection failed.");
-
-}
+$students = $stmt->fetchAll();
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Student Management System</title>
 
-    <style>
-
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            margin: 40px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        .info {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-
-        th {
-            background: #eee;
-        }
-
-    </style>
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
 
 </head>
 
@@ -117,58 +103,143 @@ try {
 
     <h1>Student Management System</h1>
 
-    <div class="info">
+    <p class="subtitle">
+        AWS EC2 + Nginx + PHP + RDS MySQL
+    </p>
 
-        <p>
-            AWS EC2 + Nginx + PHP + RDS MySQL
-        </p>
+
+    <!-- ADD STUDENT -->
+
+    <div class="card">
+
+        <h2>Add Student</h2>
+
+        <?php if (isset($_GET['created'])): ?>
+
+            <div class="success">
+                Student added successfully.
+            </div>
+
+        <?php endif; ?>
+
+
+        <?php if ($error !== ''): ?>
+
+            <div class="error">
+
+                <?= htmlspecialchars($error) ?>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <form method="POST">
+
+            <div class="form-group">
+
+                <label for="name">
+                    Student Name
+                </label>
+
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    maxlength="100"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="course">
+                    Course
+                </label>
+
+                <input
+                    type="text"
+                    id="course"
+                    name="course"
+                    maxlength="100"
+                    required
+                >
+
+            </div>
+
+
+            <button type="submit">
+                Add Student
+            </button>
+
+        </form>
 
     </div>
 
-    <table>
 
-        <thead>
+    <!-- STUDENT LIST -->
 
-        <tr>
+    <div class="card">
 
-            <th>ID</th>
-            <th>Name</th>
-            <th>Course</th>
-            <th>Created At</th>
+        <h2>Students</h2>
 
-        </tr>
+        <?php if (count($students) === 0): ?>
 
-        </thead>
+            <p>No students found.</p>
 
-        <tbody>
+        <?php else: ?>
 
-        <?php foreach ($students as $student): ?>
+            <table>
 
-            <tr>
+                <thead>
 
-                <td>
-                    <?= htmlspecialchars($student['id']) ?>
-                </td>
+                <tr>
 
-                <td>
-                    <?= htmlspecialchars($student['name']) ?>
-                </td>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Course</th>
+                    <th>Created At</th>
 
-                <td>
-                    <?= htmlspecialchars($student['course']) ?>
-                </td>
+                </tr>
 
-                <td>
-                    <?= htmlspecialchars($student['created_at']) ?>
-                </td>
+                </thead>
 
-            </tr>
 
-        <?php endforeach; ?>
+                <tbody>
 
-        </tbody>
+                <?php foreach ($students as $student): ?>
 
-    </table>
+                    <tr>
+
+                        <td>
+                            <?= htmlspecialchars($student['id']) ?>
+                        </td>
+
+                        <td>
+                            <?= htmlspecialchars($student['name']) ?>
+                        </td>
+
+                        <td>
+                            <?= htmlspecialchars($student['course']) ?>
+                        </td>
+
+                        <td>
+                            <?= htmlspecialchars($student['created_at']) ?>
+                        </td>
+
+                    </tr>
+
+                <?php endforeach; ?>
+
+                </tbody>
+
+            </table>
+
+        <?php endif; ?>
+
+    </div>
 
 </div>
 

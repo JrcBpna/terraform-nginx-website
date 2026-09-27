@@ -8,3 +8,5 @@ owner id : 135401548
 repo id : 1389426236
 
 github_actions_role_arn = "arn:aws:iam::573011045479:role/github-actions-ec2-deploy-role"
+
+arn:aws:iam::573011045479:role/github-actions-ec2-deploy-role

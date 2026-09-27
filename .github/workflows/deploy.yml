@@ -41,20 +41,38 @@ jobs:
 
           echo "Deploying to EC2 instance: $INSTANCE_ID"
 
-      - name: Deploy website using SSM
+      - name: Deploy website and run database migrations using SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ steps.ec2.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy website from GitHub" \
+            --comment "Deploy website and run database migrations" \
             --parameters 'commands=[
               "set -e",
+              "echo Starting deployment...",
               "cd /opt/website",
               "git fetch origin main",
               "git reset --hard origin/main",
-              "rsync -av --delete --exclude=.git/ /opt/website/ /var/www/html/",
+
+              "echo Checking database migration script...",
+              "test -f /opt/website/database/run_migrations.sh",
+              "chmod +x /opt/website/database/run_migrations.sh",
+
+              "echo Running database migrations...",
+              "/opt/website/database/run_migrations.sh",
+
+              "echo Deploying website files...",
+              "rsync -av --delete --exclude=.git/ --exclude=database/ /opt/website/ /var/www/html/",
+
               "chown -R www-data:www-data /var/www/html",
-              "systemctl reload nginx"
+
+              "echo Checking Nginx configuration...",
+              "nginx -t",
+
+              "echo Reloading Nginx...",
+              "systemctl reload nginx",
+
+              "echo Deployment completed successfully."
             ]' \
             --query "Command.CommandId" \
             --output text)

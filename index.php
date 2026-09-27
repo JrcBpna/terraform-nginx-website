@@ -101,7 +101,7 @@ $students = $stmt->fetchAll();
 
 <div class="container">
 
-    <h1>Student Management System</h1>
+    <h1>Student Management System - CI/CD Working</h1>
 
     <p class="subtitle">
         AWS EC2 + Nginx + PHP + RDS MySQL
